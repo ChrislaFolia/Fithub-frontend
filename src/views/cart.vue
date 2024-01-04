@@ -1,12 +1,13 @@
 <template>
   <!-- 購物車 -->
   <section class="page-section" style="padding-top: 5%; padding-bottom: 5%">
-    <div class="container">
-      <div class="row justify-content-center mb-5">
+    <div class="container ">
+      <div class="row justify-content-center mb-5 mt-5">
         <div class="col-12 col-md-6 col-lg-6">
           <ProgressBar :percent="25"></ProgressBar>
         </div>
       </div>
+      
       <div class="row justify-content-center">
         <div class="col-11 col-md-9 col-lg-8">
           <div class="p-2 bg-light border">

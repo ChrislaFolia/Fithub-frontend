@@ -1,13 +1,10 @@
 <template>
   <!-- 結帳頁面 -->
-  <section class="page-section">
+  <section class="page-section" style="padding-top: 5%; padding-bottom: 5%">
     <div class="container">
       <div class="row justify-content-center mb-5 mt-5">
-        <hr />
-        <div class="row justify-content-center mb-5">
-          <div class="col-10 col-md-6 col-lg-6">
-            <ProgressBar :percent="50"></ProgressBar>
-          </div>
+        <div class="col-10 col-md-6 col-lg-6">
+          <ProgressBar :percent="50"></ProgressBar>
         </div>
       </div>
 
@@ -54,10 +51,12 @@
               <select
                 class="form-select"
                 id="floatingSelect"
-                aria-label="Floating label select example"
+                v-model="payMethod"
                 required
               >
-                <option selected>選擇付款方式</option>
+                <option selected value="null" style="display: none">
+                  選擇付款方式
+                </option>
                 <option value="1">信用卡-綠界金流</option>
                 <option value="2">LINE PAY</option>
               </select>
@@ -79,7 +78,12 @@
                 折扣 NT$ {{ couponDiscount }}
               </div>
               <div class="d-grid gap-3 col-12 mx-auto">
-                <router-link class="btn btn-primary" to="/ordercheck"
+                <router-link
+                  class="btn btn-primary"
+                  :class="{
+                    disabled: isCheckoutButtonActive,
+                  }"
+                  to="/ordercheck"
                   >結帳</router-link
                 >
               </div>
@@ -132,7 +136,7 @@
 /*
   imports
  */
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useCartStore } from "../stores/courseStore.js";
 import { storeToRefs } from "pinia";
@@ -273,6 +277,29 @@ function showAlert(message, alertClass) {
   alertContainer.innerHTML = "";
   alertContainer.appendChild(alertElement);
 }
+
+/*
+  Go to checkout or not
+*/
+
+// button active verification
+const isCheckoutButtonActive = ref(true);
+const payMethod = ref(null);
+const CheckoutButtonActive = () => {
+  if (!payMethod) {
+    isCheckoutButtonActive.value = true;
+  } else {
+    isCheckoutButtonActive.value = false;
+  }
+};
+
+/*
+  watcher for page change
+*/
+watch(payMethod, () => {
+  CheckoutButtonActive();
+});
+
 /*
   computed total price
 */

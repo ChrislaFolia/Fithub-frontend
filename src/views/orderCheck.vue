@@ -1,7 +1,7 @@
 <template>
   <!-- 結帳頁面 -->
   <section class="page-section">
-    <div class="container" style="padding-top: 10%; padding-bottom: 10%">
+    <div class="container" style="padding-top: 5%; padding-bottom: 10%">
       <h1 class="text-center mb-5">訂單確認</h1>
       <!-- Progress Bar -->
       <div class="row justify-content-center mb-5">
