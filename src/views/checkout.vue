@@ -44,6 +44,17 @@
                   <td>NT$ &nbsp;{{ item.price.toLocaleString() }}</td>
                 </tr>
               </tbody>
+              <tbody>
+                <tr>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <!-- 顯示折扣金額 -->
+                  <td>折扣</td>
+                  <td>{{ courseCouponStore.couponName }}</td>
+                  <td>NT$ {{ -courseCouponStore.couponDiscount }}</td>
+                </tr>
+              </tbody>
             </table>
           </div>
           <div class="p-2 bg-light border">
@@ -58,7 +69,7 @@
                   選擇付款方式
                 </option>
                 <option value="1">信用卡-綠界金流</option>
-                <option value="2">LINE PAY</option>
+                <!-- <option value="2">LINE PAY</option> -->
               </select>
               <label for="floatingSelect">Pay with selects</label>
             </div>
@@ -70,13 +81,12 @@
             <div class="card-body">
               <h4 class="card-title">總價:</h4>
               <p class="card-text">
-                NT$&nbsp;{{ (totalPrice - couponDiscount).toLocaleString() }}
+                NT$&nbsp;{{
+                  (
+                    totalPrice - courseCouponStore.couponDiscount
+                  ).toLocaleString()
+                }}
               </p>
-              <div v-if="error">{{ error }}</div>
-              <!-- 顯示折扣金額 -->
-              <div v-else-if="couponDiscount">
-                折扣 NT$ {{ couponDiscount }}
-              </div>
               <div class="d-grid gap-3 col-12 mx-auto">
                 <router-link
                   class="btn btn-primary"
@@ -91,7 +101,11 @@
             <hr />
             <div class="row mx-auto">
               <h5>優惠券</h5>
-              <div id="alertContainer" class="alert-container"></div>
+              <div
+                v-show="courseCouponStore.couponDiscount > 0"
+                id="alertContainer"
+                class="alert-container"
+              ></div>
               <div class="col-12">
                 <label for="inputPassword2" class="visually-hidden"
                   >促銷代碼</label
@@ -107,13 +121,29 @@
               <div class="col-12 my-2">
                 <div class="row d-grid justify-content-end">
                   <div class="col-12">
-                    <button
-                      type="submit"
-                      class="btn btn-primary mb-3"
-                      @click="submitCoupon"
-                    >
-                      輸入
-                    </button>
+                    <div class="row mt-2">
+                      <div class="col-12 col-lg-6">
+                        <button
+                          type="button"
+                          class="btn btn-primary mb-3"
+                          :class="{
+                            disabled: !couponCode,
+                          }"
+                          @click="clearCouponCode"
+                        >
+                          清除
+                        </button>
+                      </div>
+                      <div class="col-12 col-lg-6">
+                        <button
+                          type="submit"
+                          class="btn btn-primary mb-3"
+                          @click="submitCoupon"
+                        >
+                          套用
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -136,9 +166,9 @@
 /*
   imports
  */
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed, watch, reactive } from "vue";
 import { useRoute } from "vue-router";
-import { useCartStore } from "../stores/courseStore.js";
+import { useCartStore, useCouponStore } from "../stores/courseStore.js";
 import { storeToRefs } from "pinia";
 import axios from "axios";
 import ProgressBar from "../components/checkout/util/progressbar.vue";
@@ -148,7 +178,9 @@ const URL = import.meta.env.VITE_API_JAVAURL;
   Store and relative responsive datas and local storage
 */
 const cartStore = useCartStore();
+const couponStore = useCouponStore();
 const { courseCartStore } = storeToRefs(cartStore);
+const { courseCouponStore } = storeToRefs(couponStore);
 
 /*
   Load datas
@@ -162,10 +194,8 @@ const loadPageClasses = async () => {
     .catch((error) => {
       console.log(error.toJSON());
     });
-  // console.log(response);
 
   pageClasses.value = response.data;
-  // console.log(pageClasses);
 };
 
 // Load CourseImg
@@ -177,93 +207,77 @@ const loadImg = () => {
 /*
   Submit Coupon Data
 */
+const couponData = reactive({
+  couponcategoriesid: "",
+  couponId: "",
+  couponName: "",
+  couponDiscount: 0,
+  couponEndDate: new Date(),
+  couponthreshold: 0,
+  couponused: 0,
+  couponceil: 0,
+});
 const couponCode = ref("");
-const couponDiscount = ref("");
-const couponenddate = ref("");
-const couponthreshold = ref("");
 const error = ref("");
-const couponId = ref("");
 
 const submitCoupon = async () => {
   try {
-    // console.log(couponCode.value);
     const response = await axios.get(`${URL}/coupons/api/${couponCode.value}`, {
       couponcode: couponCode.value,
     });
 
     if (response.status === 200) {
+      couponData.couponId = response.data.couponid;
+      couponData.couponDiscount = parseInt(response.data.coupondiscount);
+      couponData.couponName = response.data.couponname;
+      couponData.couponEndDate = new Date(response.data.couponenddate);
+      couponData.couponthreshold = response.data.couponthreshold;
+      couponData.couponused = parseInt(response.data.couponused, 10);
+      couponData.couponceil = parseInt(response.data.couponceil, 10);
       console.log(response.data);
-      couponDiscount.value = response.data.coupondiscount;
-      couponenddate.value = response.data.couponenddate;
-      couponthreshold.value = response.data.couponthreshold;
-      // couponId.value = response.data.couponid;
-      // console.log(couponId.value);
       // 獲取當前日期
       const currentDate = new Date();
 
-      // 將截止日期字串解析為日期對象
-      const couponEndDate = new Date(couponenddate.value);
-
-      // 確保為數字類型
-      const couponUsed = parseInt(response.data.couponused, 10);
-      const couponceil = parseInt(response.data.couponceil, 10);
-      const couponId = parseInt(response.data.couponid, 10);
-      console.log(couponId);
-
       // 檢查是否過期
-      if (currentDate > couponEndDate) {
+      if (currentDate > couponData.couponEndDate) {
         showAlert("優惠已截止", "alert-danger");
-        couponDiscount.value = "";
-        localStorage.setItem("dis", "0");
-        localStorage.setItem("used", "0");
-        localStorage.setItem("cid", "0");
+        resetCouponData();
+        clearCourseCouponStore();
       } else {
         // 計算總金額
         const total = totalPrice.value;
         // 檢查是否達到使用門檻
-        if (total < couponthreshold.value) {
+        if (total < couponData.couponthreshold) {
           showAlert("總金額未達到使用門檻", "alert-warning");
-          couponDiscount.value = "";
-          localStorage.setItem("dis", "0");
-          localStorage.setItem("used", "0");
-          localStorage.setItem("cid", "0");
+          resetCouponData();
+          clearCourseCouponStore();
         } else {
-          console.log(couponUsed);
-          console.log(couponceil);
           // 檢查已使用量是否超出限制
-          if (couponUsed >= couponceil) {
+          if (couponData.couponused >= couponData.couponceil) {
             showAlert("優惠券已用完", "alert-danger");
-            couponDiscount.value = "";
-            localStorage.setItem("dis", "0");
-            localStorage.setItem("used", "0");
-            localStorage.setItem("cid", "0");
+            resetCouponData();
+            setCourseCouponStore("", "", 0, 0);
           } else {
             // 可使用數量為超出限制，繼續處理優惠券
-            var dis = couponDiscount.value;
-            localStorage.setItem("dis", dis);
+            setCourseCouponStore(
+              couponData.couponId,
+              couponData.couponName,
+              couponData.couponDiscount,
+              couponData.couponused
+            );
             showAlert("優惠碼已使用", "alert-success");
-            var used = couponUsed;
-            localStorage.setItem("used", used);
-            var cid = couponId;
-            localStorage.setItem("cid", cid);
-            console.log(cid);
           }
         }
       }
     } else {
       showAlert("優惠券不存在", "alert-danger"); // 處理後端返回的錯誤
-      couponDiscount.value = "";
-      localStorage.setItem("dis", "0");
-      localStorage.setItem("used", "0");
-      localStorage.setItem("cid", "0");
+      resetCouponData();
+      clearCourseCouponStore();
     }
   } catch (err) {
     console.error(err);
     showAlert("優惠券不存在", "alert-danger");
-    couponDiscount.value = "";
-    localStorage.setItem("dis", "0");
-    localStorage.setItem("used", "0");
-    localStorage.setItem("cid", "0");
+    resetCouponData();
   }
 };
 
@@ -279,9 +293,10 @@ function showAlert(message, alertClass) {
 }
 
 /*
-  Go to checkout or not
+  Methods
 */
 
+// Method for go to checkout or not
 // button active verification
 const isCheckoutButtonActive = ref(true);
 const payMethod = ref(null);
@@ -291,6 +306,42 @@ const CheckoutButtonActive = () => {
   } else {
     isCheckoutButtonActive.value = false;
   }
+};
+
+// Method for deleting couponCode
+const clearCouponCode = () => {
+  couponCode.value = "";
+  resetCouponData();
+  clearCourseCouponStore();
+};
+
+// Method for reset coupon data
+const resetCouponData = () => {
+  couponData.couponcategoriesid = "";
+  couponData.couponId = "";
+  couponData.couponName = "";
+  couponData.couponDiscount = 0;
+  couponData.couponEndDate = new Date();
+  couponData.couponthreshold = 0;
+  couponData.couponused = 0;
+  couponData.couponceil = 0;
+};
+
+// Method for put coupon data into courseCouponStore
+const setCourseCouponStore = (
+  couponId,
+  couponName,
+  couponDiscount,
+  couponused
+) => {
+  courseCouponStore.value.couponId = couponId;
+  courseCouponStore.value.couponName = couponName;
+  courseCouponStore.value.couponDiscount = couponDiscount;
+  courseCouponStore.value.couponUsed = couponused;
+};
+
+const clearCourseCouponStore = () => {
+  setCourseCouponStore("", "", 0, 0);
 };
 
 /*

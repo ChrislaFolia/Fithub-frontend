@@ -34,7 +34,15 @@
                   <td>{{ item.employeename }}</td>
                   <td>{{ item.classDate }}&nbsp;{{ item.classTime }}</td>
                   <td>NT$ &nbsp;{{ item.price.toLocaleString() }}</td>
-                  <!-- <td>折扣金額(待補)</td> -->
+                </tr>
+              </tbody>
+              <tbody>
+                <tr>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td>優惠券折扣</td>
+                  <td>NT$ {{ -courseCouponStore.couponDiscount }}</td>
                 </tr>
               </tbody>
             </table>
@@ -85,7 +93,11 @@
             <div class="card-body">
               <h4 class="card-title">總價:</h4>
               <p class="card-text">
-                NT$&nbsp;{{ (totalPrice - dis).toLocaleString() }}
+                NT$&nbsp;{{
+                  (
+                    totalPrice - courseCouponStore.couponDiscount
+                  ).toLocaleString()
+                }}
               </p>
               <div class="d-grid gap-3 col-12 mx-auto">
                 <!-- <button @click="postDataToApi" class="btn btn-primary">
@@ -122,7 +134,7 @@
  */
 import axios from "axios";
 import { reactive, ref, onMounted, computed } from "vue";
-import { useCartStore } from "../stores/courseStore.js";
+import { useCartStore, useCouponStore } from "../stores/courseStore.js";
 import { storeToRefs } from "pinia";
 import { useNow, useDateFormat } from "@vueuse/core";
 import ProgressBar from "../components/checkout/util/progressbar.vue";
@@ -132,10 +144,12 @@ const URL = import.meta.env.VITE_API_JAVAURL;
   Store and relative responsive datas and local storage
 */
 const cartStore = useCartStore();
+const couponStore = useCouponStore();
 const { courseCartStore } = storeToRefs(cartStore);
+const { courseCouponStore } = storeToRefs(couponStore);
 
 /*
-  訂單
+  Order
 */
 // 根據你的資料結構組合需要的資料
 const courseCart = courseCartStore.value; // 獲取courseCart數組
@@ -153,9 +167,6 @@ const dataToSend = {
 
 const memberId = localStorage.getItem("memberid");
 const memberData = ref({});
-
-// 從localStorage取得折扣金額
-const dis = localStorage.getItem("dis");
 
 const fetchMemberData = async () => {
   try {
@@ -228,7 +239,7 @@ const postDataToApi = async () => {
 };
 
 // 创建一个ref来存储已使用量
-const couponUsed = ref(parseInt(localStorage.getItem("used")) || 0);
+const couponUsed = ref(parseInt(courseCouponStore.value.couponUsed) || 0);
 
 // 创建一个方法来向后端发送数据
 const sendDataToBackend = async () => {
@@ -237,7 +248,7 @@ const sendDataToBackend = async () => {
     couponUsed.value += 1;
     console.log("使用量 " + couponUsed.value);
     const response = await axios.put(
-      `${URL}/coupons/update/${couponId}`,
+      `${URL}/coupons/update/${courseCouponStore.value.couponId}`,
       null,
       {
         params: {
@@ -246,8 +257,8 @@ const sendDataToBackend = async () => {
       }
     );
 
-    // 处理后端响应
-    console.log("后端响应：", response.data);
+    // backend response data
+    console.log("Backend response data", response.data);
   } catch (error) {
     console.error("发送数据到后端时出错：", error);
   }

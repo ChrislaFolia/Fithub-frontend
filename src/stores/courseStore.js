@@ -34,3 +34,25 @@ export const useWishlistStore = defineStore(
     ],
   }
 );
+
+export const useCouponStore = defineStore(
+  "coupon",
+  () => {
+    // 用setup的方式定義
+    const courseCouponStore = ref({
+      couponId: "",
+      couponName: "",
+      couponDiscount: 0,
+      couponUsed: 0,
+    });
+    return { courseCouponStore };
+  },
+  {
+    persist: [
+      {
+        paths: ["courseCouponStore"],
+        storage: localStorage,
+      },
+    ],
+  }
+);
