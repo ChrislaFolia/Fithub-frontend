@@ -42,6 +42,7 @@ export const useCouponStore = defineStore(
     const courseCouponStore = ref({
       couponId: "",
       couponName: "",
+      couponCode: "",
       couponDiscount: 0,
       couponUsed: 0,
     });

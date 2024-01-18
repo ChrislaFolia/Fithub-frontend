@@ -127,7 +127,7 @@
                           type="button"
                           class="btn btn-primary mb-3"
                           :class="{
-                            disabled: !couponCode,
+                            disabled: !courseCouponStore.couponId,
                           }"
                           @click="clearCouponCode"
                         >
@@ -138,6 +138,9 @@
                         <button
                           type="submit"
                           class="btn btn-primary mb-3"
+                          :class="{
+                            disabled: !couponCode,
+                          }"
                           @click="submitCoupon"
                         >
                           套用
@@ -262,6 +265,7 @@ const submitCoupon = async () => {
             setCourseCouponStore(
               couponData.couponId,
               couponData.couponName,
+              couponCode.value,
               couponData.couponDiscount,
               couponData.couponused
             );
@@ -331,22 +335,32 @@ const resetCouponData = () => {
 const setCourseCouponStore = (
   couponId,
   couponName,
+  couponCode,
   couponDiscount,
   couponused
 ) => {
   courseCouponStore.value.couponId = couponId;
   courseCouponStore.value.couponName = couponName;
+  courseCouponStore.value.couponCode = couponCode;
   courseCouponStore.value.couponDiscount = couponDiscount;
   courseCouponStore.value.couponUsed = couponused;
 };
 
 const clearCourseCouponStore = () => {
-  setCourseCouponStore("", "", 0, 0);
+  setCourseCouponStore("", "", "", 0, 0);
+};
+
+// Method for couponCode diaplay
+const couponCodeDiaplay = () => {
+  if (courseCouponStore.value.couponCode && !couponCode.value) {
+    couponCode.value = courseCouponStore.value.couponCode;
+  }
 };
 
 /*
-  watcher for page change
+  watchers
 */
+// watcher for page change
 watch(payMethod, () => {
   CheckoutButtonActive();
 });
@@ -368,6 +382,7 @@ const totalPrice = computed(() => {
 */
 onMounted(() => {
   loadPageClasses();
+  couponCodeDiaplay();
 });
 </script>
 
