@@ -100,14 +100,8 @@
                 }}
               </p>
               <div class="d-grid gap-3 col-12 mx-auto">
-                <!-- <button @click="postDataToApi" class="btn btn-primary">
-                  結帳
-                </button> -->
                 <button
-                  @click="
-                    sendDataToBackend();
-                    postDataToApi();
-                  "
+                  @click="postOrderDataToServerAndThirdPartyPayment()"
                   class="btn btn-primary"
                 >
                   結帳
@@ -133,7 +127,7 @@
   imports
  */
 import axios from "axios";
-import { reactive, ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useCartStore, useCouponStore } from "../stores/courseStore.js";
 import { storeToRefs } from "pinia";
 import { useNow, useDateFormat } from "@vueuse/core";
@@ -153,43 +147,54 @@ const { courseCouponStore } = storeToRefs(couponStore);
 */
 // 根據你的資料結構組合需要的資料
 const courseCart = courseCartStore.value; // 獲取courseCart數組
-const couponId = localStorage.getItem("cid");
+const couponId = courseCouponStore.value.couponId;
 
 const dataToSend = {
   orderDate: "",
-  orderCondition: "未付款", // 寫死!!
+  // orderCondition: "未成立", // default
+  orderCondition: "未付款", // default
   memberId: localStorage.getItem("memberid"),
   orderTotalAmount: "", // for (課程-折扣)
-  orderPaymentMethod: "Credit Card", // 先寫死
-  orderstate: 1, // 寫死
-  orderItem: courseCart.map((classId) => ({ classId, couponId })), // 使用map轉換courseCart數組
+  orderPaymentMethod: "Credit Card", // default
+  orderstate: 1, // default
+  // orderItem: courseCart.map((classId) => ({ classId, couponId })), // 使用map轉換courseCart數組
+  orderItem: [], // 使用map轉換courseCart數組
 };
 
 const memberId = localStorage.getItem("memberid");
 const memberData = ref({});
 
+const generateOrderItem = () => {
+  dataToSend.orderItem.push({ classId: courseCart[0], couponId: couponId });
+  for (let i = 1; i < courseCart.length; i++) {
+    dataToSend.orderItem.push({ classId: courseCart[i], couponId: null });
+  }
+};
+
 const fetchMemberData = async () => {
   try {
     const id = memberId;
-    console.log(id);
+    // console.log(id);
     const response = await axios.get(`${URL}/members/${id}`);
     memberData.value = response.data;
-    console.log(memberData.value);
+    // console.log(memberData.value);
   } catch (error) {
     console.error("獲取會員資料失敗", error);
   }
 };
 
-const postDataToApi = async () => {
+const postOrderDataToServerAndThirdPartyPayment = async () => {
   try {
-    // 時間為訂單成立時間,使用vueuse套件生成
+    // 時間為訂單成立時間,使用 vueuse 套件生成
     const formatted = useDateFormat(useNow(), "YYYY/MM/DD HH:mm:ss");
     console.log(formatted.value);
+    generateOrderItem();
     // 生成後將值，塞給dataToSend.orderDate
     dataToSend.orderDate = formatted.value;
 
     // 訂單總金額 = 商品總額-折扣的金額
-    dataToSend.orderTotalAmount = totalPrice.value - dis;
+    dataToSend.orderTotalAmount =
+      totalPrice.value - courseCouponStore.value.couponDiscount;
     console.log(dataToSend.orderTotalAmount);
 
     // 發送 POST 請求到後端 API
@@ -214,12 +219,12 @@ const postDataToApi = async () => {
       const ecpayCheckout = ecpayResponse.data;
       console.log(ecpayCheckout);
 
-      // 建立一个隱藏的div元素，將表單內容放入
+      // 建立一個隱藏的 div 元素，將表單內容放入
       const hiddenDiv = document.createElement("div");
-      hiddenDiv.style.display = "none"; // 隐藏这个元素
+      hiddenDiv.style.display = "none"; // Hide div element
       hiddenDiv.innerHTML = ecpayCheckout;
 
-      // 將隱藏的div添加到網頁中
+      // 將隱藏的 div 添加到網頁中
       document.body.appendChild(hiddenDiv);
       // 找到表單元素
       const form = hiddenDiv.querySelector("form");
@@ -227,40 +232,41 @@ const postDataToApi = async () => {
         // 觸發表單自動提交
         form.submit();
       } else {
-        console.error("找不到表单元素");
+        console.error("form element not found");
       }
+      updateCouponDataToDB();
     } else {
       // 其他狀態碼，可能需要進行錯誤處理
-      console.error("請求失敗，狀態碼：", response.status);
+      console.error("Request failed, status code:", response.status);
     }
   } catch (error) {
     console.error("發生錯誤", error);
   }
+  courseCartStore.value = []; // Clear the cart
 };
 
-// 创建一个ref来存储已使用量
-const couponUsed = ref(parseInt(courseCouponStore.value.couponUsed) || 0);
+const updateCouponDataToDB = async () => {
+  if (courseCouponStore.value.couponCode) {
+    try {
+      // update couponUsed amount
+      const couponUsed = ref(parseInt(courseCouponStore.value.couponUsed) || 0);
+      couponUsed.value += 1;
+      console.log("Coupon 使用量 " + couponUsed.value);
+      const response = await axios.put(
+        `${URL}/coupons/update/${courseCouponStore.value.couponId}`,
+        null,
+        {
+          params: {
+            couponused: couponUsed.value.toString(), // 将值作为请求参数发送
+          },
+        }
+      );
 
-// 创建一个方法来向后端发送数据
-const sendDataToBackend = async () => {
-  try {
-    // 先将 couponUsed 值加一
-    couponUsed.value += 1;
-    console.log("使用量 " + couponUsed.value);
-    const response = await axios.put(
-      `${URL}/coupons/update/${courseCouponStore.value.couponId}`,
-      null,
-      {
-        params: {
-          couponused: couponUsed.value.toString(), // 将值作为请求参数发送
-        },
-      }
-    );
-
-    // backend response data
-    console.log("Backend response data", response.data);
-  } catch (error) {
-    console.error("发送数据到后端时出错：", error);
+      // backend response data
+      console.log("Backend response data", response.data);
+    } catch (error) {
+      console.error("error when update coupon data to DB", error);
+    }
   }
 };
 

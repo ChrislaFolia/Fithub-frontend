@@ -52,7 +52,9 @@ export const useCouponStore = defineStore(
     persist: [
       {
         paths: ["courseCouponStore"],
-        storage: localStorage,
+        // Better reset coupon data after closing browser
+        // so use Session Storage
+        storage: sessionStorage,
       },
     ],
   }
