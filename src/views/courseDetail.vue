@@ -248,7 +248,7 @@ const loadPageClasses = async () => {
   const response = await axios
     .get(URLAPI, {
       params: {
-        monthBefore: 1,
+        monthBefore: -1, // monthBefore=-1 means the start day will be the first day of next month
         monthAfter: 1,
       },
     })
